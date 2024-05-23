@@ -18,7 +18,8 @@ def main(params):
     secret_token = os.environ.get("WEBHOOK_SECRET")
     if not secret_token:
         raise ValueError("WEBHOOK_SECRET environment variable not found")
-
+    icr_namespace = os.environ.get("ICR_NAMESPACE")
+    icr_image= os.environ.get("ICR_IMAGE")
     payload_body = params
     headers = payload_body["__ce_headers"]
     signature_header = headers.get("X-Hub-Signature-256", None)
@@ -48,11 +49,12 @@ def main(params):
     try:
 
         app_get = httpx.get(app_endpoint, headers = { "Authorization" : iam_token })
+        icr_endpoint = code_engine_region.split('-')
         results = app_get.json()
         etag = results['entity_tag']
         short_tag = image_tag[:8]
         update_headers = { "Authorization" : iam_token, "Content-Type" : "application/merge-patch+json", "If-Match" : etag }
-        app_patch_model = { "image_reference": "private.us.icr.io/rtiffany/dts-ce-py-app:" + short_tag }
+        app_patch_model = { "image_reference": "private." + icr_endpoint + "/" + icr_namespace + "/" + icr_image + ":" + short_tag }
         app_update = httpx.patch(app_endpoint, headers = update_headers, json = app_patch_model)
         app_update.raise_for_status()
         app_json_payload = app_update.json()
