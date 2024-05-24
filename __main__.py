@@ -19,14 +19,7 @@ def main(params):
     if not secret_token:
         raise ValueError("WEBHOOK_SECRET environment variable not found")
 
-    icr_namespace = os.environ.get("ICR_NAMESPACE")
-    if not icr_namespace:
-        raise ValueError("ICR_NAMESPACE environment variable not found, Make sure it was added to the function")
-    
-    icr_image= os.environ.get("ICR_IMAGE")
-    if not icr_image:
-        raise ValueError("ICR_IMAGE environment variable not found, Make sure it was added to the function")
-        
+  
     payload_body = params
     headers = payload_body["__ce_headers"]
     signature_header = headers.get("X-Hub-Signature-256", None)
@@ -55,16 +48,25 @@ def main(params):
     app_endpoint = f"https://api.{code_engine_region}.codeengine.cloud.ibm.com/v2/projects/{project_id}/apps/{code_engine_app}"
 
     try:
+        icr_namespace = os.environ.get("ICR_NAMESPACE")
+        if not icr_namespace:
+            raise ValueError("ICR_NAMESPACE environment variable not found, Make sure it was added to the function")
+    
+        icr_image= os.environ.get("ICR_IMAGE")
+        if not icr_image:
+            raise ValueError("ICR_IMAGE environment variable not found, Make sure it was added to the function")
 
-        app_get = httpx.get(app_endpoint, headers = { "Authorization" : iam_token })
         icr_endpoint = code_engine_region.split('-')
+        
+        app_get = httpx.get(app_endpoint, headers = { "Authorization" : iam_token })
+        
         results = app_get.json()
         etag = results['entity_tag']
         short_tag = image_tag[:8]
         model_url = f"private.{icr_endpoint}/{icr_namespace}/{icr_image}:{short_tag}"
-        app_patch_model = {
-            "image_reference": model_url
-        }
+        # app_patch_model = {
+        #     "image_reference": model_url
+        # }
         update_headers = { "Authorization" : iam_token, "Content-Type" : "application/merge-patch+json", "If-Match" : etag }
         # app_patch_model = { "image_reference": "private.ca.icr.io/xupg-icr-ns/xupg-simpleflask:" + short_tag }
         # app_patch_model = { "image_reference": f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}" }
@@ -78,13 +80,13 @@ def main(params):
             "headers": {"Content-Type": "application/json"},
             "statusCode": 200,
             "type": type(model_url),
-            "body": type(app_patch_model)
+            "body": "I am test data"
         }
  
         return {
                 "headers": {"Content-Type": "application/json"},
                 "statusCode": 200,
-                "body": data
+                "body": json.dumps(data)
                 }
     except httpx.HTTPError as e:
         # Define results here to avoid the error
