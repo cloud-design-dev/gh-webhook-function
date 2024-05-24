@@ -18,8 +18,15 @@ def main(params):
     secret_token = os.environ.get("WEBHOOK_SECRET")
     if not secret_token:
         raise ValueError("WEBHOOK_SECRET environment variable not found")
+
     icr_namespace = os.environ.get("ICR_NAMESPACE")
+    if not icr_namespace:
+        raise ValueError("ICR_NAMESPACE environment variable not found, Make sure it was added to the function")
+    
     icr_image= os.environ.get("ICR_IMAGE")
+    if not icr_image:
+        raise ValueError("ICR_IMAGE environment variable not found, Make sure it was added to the function")
+        
     payload_body = params
     headers = payload_body["__ce_headers"]
     signature_header = headers.get("X-Hub-Signature-256", None)
@@ -54,9 +61,11 @@ def main(params):
         results = app_get.json()
         etag = results['entity_tag']
         short_tag = image_tag[:8]
-        
+        app_patch_model = {
+            "image_reference": f"private.{icr_endpoint}/{os.environ['ICR_NAMESPACE']}/{os.environ['ICR_IMAGE']}:" + short_tag
+        }
         update_headers = { "Authorization" : iam_token, "Content-Type" : "application/merge-patch+json", "If-Match" : etag }
-        app_patch_model = { "image_reference": "private.ca.icr.io/xupg-icr-ns/xupg-simpleflask:" + short_tag }
+        # app_patch_model = { "image_reference": "private.ca.icr.io/xupg-icr-ns/xupg-simpleflask:" + short_tag }
         # app_patch_model = { "image_reference": f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}" }
         ## Fix me to use fstring interpolation correctly
         app_update = httpx.patch(app_endpoint, headers = update_headers, json = app_patch_model)
