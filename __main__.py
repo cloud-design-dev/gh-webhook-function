@@ -42,6 +42,7 @@ def main(params):
         }
 
     code_engine_app = os.environ.get('CE_APP')
+
     code_engine_region = os.environ.get('CE_REGION')
     project_id = os.environ.get('CE_PROJECT_ID')
     app_endpoint = f"https://api.{code_engine_region}.codeengine.cloud.ibm.com/v2/projects/{project_id}/apps/{code_engine_app}"
@@ -53,8 +54,10 @@ def main(params):
         results = app_get.json()
         etag = results['entity_tag']
         short_tag = image_tag[:8]
+        
         update_headers = { "Authorization" : iam_token, "Content-Type" : "application/merge-patch+json", "If-Match" : etag }
-        app_patch_model = { "image_reference": "private." + icr_endpoint + "/" + icr_namespace + "/" + icr_image + ":" + short_tag }
+        app_patch_model = { "image_reference": "private.ca.icr.io/xupg-icr-ns/xupg-simpleflask:" + short_tag }
+        
         app_update = httpx.patch(app_endpoint, headers = update_headers, json = app_patch_model)
         app_update.raise_for_status()
         app_json_payload = app_update.json()
