@@ -69,16 +69,17 @@ def main(params):
         # app_patch_model = { "image_reference": "private.ca.icr.io/xupg-icr-ns/xupg-simpleflask:" + short_tag }
         # app_patch_model = { "image_reference": f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}" }
         ## Fix me to use fstring interpolation correctly
-        app_update = httpx.patch(app_endpoint, headers = update_headers, json = app_patch_model)
-        app_update.raise_for_status()
-        app_json_payload = app_update.json()
-        latest_ready_revision = app_json_payload.get('latest_ready_revision', None)
+        # app_update = httpx.patch(app_endpoint, headers = update_headers, json = app_patch_model)
+        # app_update.raise_for_status()
+        # app_json_payload = app_update.json()
+        # latest_ready_revision = app_json_payload.get('latest_ready_revision', None)
 
         data = {
             "headers": {"Content-Type": "application/json"},
             "statusCode": 200,
+            "type": type(model_url)
             "latest_ready_revision": latest_ready_revision,
-            "body": "App updated successfully"
+            "body": json.dumps(app_patch_model)
         }
  
         return {
