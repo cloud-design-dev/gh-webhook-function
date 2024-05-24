@@ -77,7 +77,7 @@ def main(params):
         data = {
             "headers": {"Content-Type": "application/json"},
             "statusCode": 200,
-            "type": type(model_url)
+            "type": type(model_url),
             "latest_ready_revision": latest_ready_revision,
             "body": json.dumps(app_patch_model)
         }
