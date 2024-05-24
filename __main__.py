@@ -61,8 +61,9 @@ def main(params):
         results = app_get.json()
         etag = results['entity_tag']
         short_tag = image_tag[:8]
+        model_url = f"private.{icr_endpoint}/{icr_namespace}/{icr_image}:{short_tag}"
         app_patch_model = {
-            "image_reference": f"private.{icr_endpoint}/{os.environ['ICR_NAMESPACE']}/{os.environ['ICR_IMAGE']}:" + short_tag
+            "image_reference": model_url
         }
         update_headers = { "Authorization" : iam_token, "Content-Type" : "application/merge-patch+json", "If-Match" : etag }
         # app_patch_model = { "image_reference": "private.ca.icr.io/xupg-icr-ns/xupg-simpleflask:" + short_tag }
