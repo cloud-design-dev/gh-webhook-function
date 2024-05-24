@@ -56,31 +56,32 @@ def main(params):
         if not icr_image:
             raise ValueError("ICR_IMAGE environment variable not found, Make sure it was added to the function")
 
-        icr_endpoint = code_engine_region.split('-')
-        
+        icr_region = code_engine_region.split('-')
+        icr_endpoint = icr_region[0]
         app_get = httpx.get(app_endpoint, headers = { "Authorization" : iam_token })
         
         results = app_get.json()
         etag = results['entity_tag']
         short_tag = image_tag[:8]
-        model_url = str(f"private.{icr_endpoint}/{icr_namespace}/{icr_image}:{short_tag}")
-        # app_patch_model = {
-        #     "image_reference": model_url
-        # }
+        model_url = f"private.{icr_endpoint}/{icr_namespace}/{icr_image}:{short_tag}"
+
         update_headers = { "Authorization" : iam_token, "Content-Type" : "application/merge-patch+json", "If-Match" : etag }
+        app_patch_model = {
+            "image_reference": model_url
+        }
         # app_patch_model = { "image_reference": "private.ca.icr.io/xupg-icr-ns/xupg-simpleflask:" + short_tag }
         # app_patch_model = { "image_reference": f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}" }
         ## Fix me to use fstring interpolation correctly
-        # app_update = httpx.patch(app_endpoint, headers = update_headers, json = app_patch_model)
-        # app_update.raise_for_status()
-        # app_json_payload = app_update.json()
-        # latest_ready_revision = app_json_payload.get('latest_ready_revision', None)
+        app_update = httpx.patch(app_endpoint, headers = update_headers, json = app_patch_model)
+        app_update.raise_for_status()
+        app_json_payload = app_update.json()
+        latest_ready_revision = app_json_payload.get('latest_ready_revision', None)
 
         data = {
             "headers": {"Content-Type": "application/json"},
             "statusCode": 200,
-            "type": type(model_url),
-            "body": "I am test data"
+            "latest_ready_revision": latest_ready_revision,
+            "body": "App updated successfully"
         }
  
         return {
