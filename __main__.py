@@ -56,8 +56,8 @@ def main(params):
         short_tag = image_tag[:8]
         
         update_headers = { "Authorization" : iam_token, "Content-Type" : "application/merge-patch+json", "If-Match" : etag }
-        # app_patch_model = { "image_reference": "private.ca.icr.io/xupg-icr-ns/xupg-simpleflask:" + short_tag }
-        app_patch_model = { "image_reference": f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}" }
+        app_patch_model = { "image_reference": "private.ca.icr.io/xupg-icr-ns/xupg-simpleflask:" + short_tag }
+        # app_patch_model = { "image_reference": f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}" }
         ## Fix me to use fstring interpolation correctly
         app_update = httpx.patch(app_endpoint, headers = update_headers, json = app_patch_model)
         app_update.raise_for_status()
