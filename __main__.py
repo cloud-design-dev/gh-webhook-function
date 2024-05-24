@@ -63,7 +63,7 @@ def main(params):
         results = app_get.json()
         etag = results['entity_tag']
         short_tag = image_tag[:8]
-        model_url = f"private.{icr_endpoint}/{icr_namespace}/{icr_image}:{short_tag}"
+        model_url = f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}"
 
         update_headers = { "Authorization" : iam_token, "Content-Type" : "application/merge-patch+json", "If-Match" : etag }
         app_patch_model = {
