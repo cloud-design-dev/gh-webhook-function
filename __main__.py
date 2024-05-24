@@ -84,7 +84,7 @@ def main(params):
         return {
                 "headers": {"Content-Type": "application/json"},
                 "statusCode": 200,
-                "body": json.dumps(data)
+                "body": data
                 }
     except httpx.HTTPError as e:
         # Define results here to avoid the error
