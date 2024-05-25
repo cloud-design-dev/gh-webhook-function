@@ -1,7 +1,10 @@
+"""helper functions for __main.py__"""
 import json
 import hashlib
 import hmac
-import httpx
+from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+from ibm_code_engine_sdk.code_engine_v2 import CodeEngineV2
+
 
 HEADERS = {"Content-Type": "text/plain;charset=utf-8"}
 
@@ -53,11 +56,9 @@ def verify_signature(payload_body, secret_token, signature_header):
 
     return None
 
-def get_iam_token(ibmcloud_api_key):
-    """Get IAM token from IBM Cloud using API key."""
-    hdrs = { "Accept" : "application/json", "Content-Type" : "application/x-www-form-urlencoded" }
-    iam_params = { "grant_type" : "urn:ibm:params:oauth:grant-type:apikey", "apikey" : ibmcloud_api_key }
-    resp = httpx.post('https://iam.cloud.ibm.com/identity/token', data = iam_params, headers = hdrs)
-    resp.raise_for_status() 
-    return resp.json().get('access_token', None)
-
+def create_code_engine_client(ibmcloud_api_key, code_engine_region):
+    """Create Code Engine client using IAM token."""
+    authenticator = IAMAuthenticator(apikey=ibmcloud_api_key)
+    service = CodeEngineV2(authenticator=authenticator)
+    service.set_service_url('https://api.'+ code_engine_region +'.codeengine.cloud.ibm.com/v2')
+    return service
