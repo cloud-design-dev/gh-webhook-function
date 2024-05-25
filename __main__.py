@@ -2,8 +2,10 @@
 import logging
 import os
 import json
-import httpx
-from helpers import verify_payload, verify_signature, get_iam_token
+from ibm_cloud_sdk_core import ApiException
+from helpers import verify_payload, verify_signature, create_code_engine_client
+
+
 
 HEADERS = {"Content-Type": "text/plain;charset=utf-8"}
 
@@ -30,52 +32,40 @@ def main(params):
             "statusCode": 400,
             "body": "Missing image tag"
         }
+    
     verify_payload(payload_body)
     verify_signature(payload_body, secret_token, signature_header)
 
-    iam_token = get_iam_token(ibmcloud_api_key)
-    if not iam_token:
-        return {
-            "headers": HEADERS,
-            "statusCode": 500,
-            "body": "Failed to get IAM token",
-        }
-
-    code_engine_app = os.environ.get('CE_APP')
-
-    code_engine_region = os.environ.get('CE_REGION')
-    project_id = os.environ.get('CE_PROJECT_ID')
-    app_endpoint = f"https://api.{code_engine_region}.codeengine.cloud.ibm.com/v2/projects/{project_id}/apps/{code_engine_app}"
-
     try:
+        code_engine_app = os.environ.get('CE_APP')
+        code_engine_region = os.environ.get('CE_REGION')
+        project_id = os.environ.get('CE_PROJECT_ID')
         icr_namespace = os.environ.get("ICR_NAMESPACE")
-        if not icr_namespace:
-            raise ValueError("ICR_NAMESPACE environment variable not found, Make sure it was added to the function")
-    
         icr_image= os.environ.get("ICR_IMAGE")
-        if not icr_image:
-            raise ValueError("ICR_IMAGE environment variable not found, Make sure it was added to the function")
+        icr_endpoint = code_engine_region.split('-')[0]
 
-        icr_region = code_engine_region.split('-')
-        icr_endpoint = icr_region[0]
-        app_get = httpx.get(app_endpoint, headers = { "Authorization" : iam_token })
-        
-        results = app_get.json()
-        etag = results['entity_tag']
+        code_engine_client = create_code_engine_client(ibmcloud_api_key, code_engine_region)
+
+        get_app = code_engine_client.get_app(
+            project_id=project_id,
+            name=code_engine_app,
+        ).get_result()
+
+        etag = get_app.get('entity_tag')
         short_tag = image_tag[:8]
-        model_url = f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}"
-
-        update_headers = { "Authorization" : iam_token, "Content-Type" : "application/merge-patch+json", "If-Match" : etag }
         app_patch_model = {
-            "image_reference": model_url
+            "image_reference": f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}"
         }
-        # app_patch_model = { "image_reference": "private.ca.icr.io/xupg-icr-ns/xupg-simpleflask:" + short_tag }
-        # app_patch_model = { "image_reference": f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}" }
-        ## Fix me to use fstring interpolation correctly
-        app_update = httpx.patch(app_endpoint, headers = update_headers, json = app_patch_model)
-        app_update.raise_for_status()
-        app_json_payload = app_update.json()
-        latest_ready_revision = app_json_payload.get('latest_ready_revision', None)
+        
+        update_app = code_engine_client.update_app(
+            project_id=project_id,
+            name=code_engine_app,
+            if_match=etag,
+            app=app_patch_model,
+        ).get_result()
+
+        latest_ready_revision = update_app.get('latest_ready_revision')
+
 
         data = {
             "headers": {"Content-Type": "application/json"},
@@ -89,7 +79,7 @@ def main(params):
                 "statusCode": 200,
                 "body": json.dumps(data)
                 }
-    except httpx.HTTPError as e:
+    except ApiException as e:
         # Define results here to avoid the error
         results = {"error": str(e)}
         return {
