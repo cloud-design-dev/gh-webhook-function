@@ -64,13 +64,12 @@ def main(params):
             app=app_patch_model,
         ).get_result()
 
-        latest_ready_revision = update_app.get('latest_ready_revision')
-
+        app_version = update_app.get('status_details', {}).get('latest_created_revision')
 
         data = {
             "headers": {"Content-Type": "application/json"},
             "statusCode": 200,
-            "latest_ready_revision": latest_ready_revision,
+            "new_version": app_version,
             "body": "App updated successfully"
         }
  
