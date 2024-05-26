@@ -5,14 +5,20 @@ import json
 from ibm_cloud_sdk_core import ApiException
 from helpers import verify_payload, verify_signature, create_code_engine_client
 
-
-
 HEADERS = {"Content-Type": "text/plain;charset=utf-8"}
 
 logger = logging.getLogger()
 
-
 def main(params):
+    """
+    Main entry point to the webhook function.
+    
+    Args:
+        params (dict): The parameters passed to the function. Headers and body are included in the params.
+
+    Returns:
+        dict: The response object containing the headers, status code, and body of the response.
+    """
     ibmcloud_api_key = os.environ.get('IBMCLOUD_API_KEY')
     if not ibmcloud_api_key:
         raise ValueError("IBMCLOUD_API_KEY environment variable not found")
@@ -21,7 +27,6 @@ def main(params):
     if not secret_token:
         raise ValueError("WEBHOOK_SECRET environment variable not found")
 
-  
     payload_body = params
     headers = payload_body["__ce_headers"]
     signature_header = headers.get("X-Hub-Signature-256", None)
@@ -32,7 +37,7 @@ def main(params):
             "statusCode": 400,
             "body": "Missing image tag"
         }
-    
+
     verify_payload(payload_body)
     verify_signature(payload_body, secret_token, signature_header)
 
@@ -53,10 +58,11 @@ def main(params):
 
         etag = get_app.get('entity_tag')
         short_tag = image_tag[:8]
+        new_image_reference = f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}"
         app_patch_model = {
-            "image_reference": f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}"
+            "image_reference": new_image_reference
         }
-        
+
         update_app = code_engine_client.update_app(
             project_id=project_id,
             name=code_engine_app,
@@ -72,7 +78,7 @@ def main(params):
             "new_version": app_version,
             "body": "App updated successfully"
         }
- 
+
         return {
                 "headers": {"Content-Type": "application/json"},
                 "statusCode": 200,
