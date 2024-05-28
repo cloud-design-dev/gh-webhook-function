@@ -40,55 +40,70 @@ def main(params):
 
     verify_payload(payload_body)
     verify_signature(payload_body, secret_token, signature_header)
+    action_status = payload_body.get('action')
+    if action_status == 'completed':
+        try:
+            code_engine_app = os.environ.get('CE_APP')
+            code_engine_region = os.environ.get('CE_REGION')
+            project_id = os.environ.get('CE_PROJECT_ID')
+            icr_namespace = os.environ.get("ICR_NAMESPACE")
+            icr_image= os.environ.get("ICR_IMAGE")
+            icr_endpoint = code_engine_region.split('-')[0]
 
-    try:
-        code_engine_app = os.environ.get('CE_APP')
-        code_engine_region = os.environ.get('CE_REGION')
-        project_id = os.environ.get('CE_PROJECT_ID')
-        icr_namespace = os.environ.get("ICR_NAMESPACE")
-        icr_image= os.environ.get("ICR_IMAGE")
-        icr_endpoint = code_engine_region.split('-')[0]
+            code_engine_client = create_code_engine_client(ibmcloud_api_key, code_engine_region)
 
-        code_engine_client = create_code_engine_client(ibmcloud_api_key, code_engine_region)
+            get_app = code_engine_client.get_app(
+                project_id=project_id,
+                name=code_engine_app,
+            ).get_result()
 
-        get_app = code_engine_client.get_app(
-            project_id=project_id,
-            name=code_engine_app,
-        ).get_result()
+            etag = get_app.get('entity_tag')
+            short_tag = image_tag[:8]
+            new_image_reference = f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}"
+            app_patch_model = {
+                "image_reference": new_image_reference
+            }
 
-        etag = get_app.get('entity_tag')
-        short_tag = image_tag[:8]
-        new_image_reference = f"private.{icr_endpoint}.icr.io/{icr_namespace}/{icr_image}:{short_tag}"
-        app_patch_model = {
-            "image_reference": new_image_reference
-        }
+            update_app = code_engine_client.update_app(
+                project_id=project_id,
+                name=code_engine_app,
+                if_match=etag,
+                app=app_patch_model,
+            ).get_result()
 
-        update_app = code_engine_client.update_app(
-            project_id=project_id,
-            name=code_engine_app,
-            if_match=etag,
-            app=app_patch_model,
-        ).get_result()
+            app_version = update_app.get('status_details', {}).get('latest_created_revision')
 
-        app_version = update_app.get('status_details', {}).get('latest_created_revision')
-
-        data = {
-            "headers": {"Content-Type": "application/json"},
-            "statusCode": 200,
-            "new_version": app_version,
-            "body": "App updated successfully"
-        }
-
-        return {
+            data = {
                 "headers": {"Content-Type": "application/json"},
                 "statusCode": 200,
-                "body": json.dumps(data)
-                }
-    except ApiException as e:
-        # Define results here to avoid the error
-        results = {"error": str(e)}
+                "new_version": app_version,
+                "body": "App updated successfully"
+            }
+
+            return {
+                    "headers": {"Content-Type": "application/json"},
+                    "statusCode": 200,
+                    "body": json.dumps(data)
+                    }
+        except ApiException as e:
+            # Define results here to avoid the error
+            results = {"error": str(e)}
+            return {
+                    "headers": {"Content-Type": "application/json"},
+                    "statusCode": 500,
+                    "body": json.dumps(results)
+            }
+    elif action_status in ['requested', 'in_progress']:
+        logging.info(f"Action status is {action_status}. No further processing required.")
         return {
-                "headers": {"Content-Type": "application/json"},
-                "statusCode": 500,
-                "body": json.dumps(results)
+            "headers": {"Content-Type": "application/json"},
+            "statusCode": 200,
+            "body": f"Action status is {action_status}. No further processing required."
+        }
+    else:
+        logging.warning(f"Unexpected action status: {action_status}")
+        return {
+            "headers": {"Content-Type": "application/json"},
+            "statusCode": 400,
+            "body": f"Unexpected action status: {action_status}"
         }
